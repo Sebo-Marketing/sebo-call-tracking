@@ -28,6 +28,12 @@ function sebo_ct_ga4_body( array $call, array $dest, string $event_name ): array
 	if ( $session ) {
 		$params['session_id'] = (int) $session['session_id'];
 	}
+	// value and currency are GA4's own parameters: a key event's value in
+	// GA4, and the conversion value Google Ads can import with it.
+	if ( null !== ( $call['value'] ?? null ) ) {
+		$params['value']    = $call['value'];
+		$params['currency'] = $call['currency'] ?: 'USD';
+	}
 
 	// Custom parameters: register any you want to report on as event-scoped
 	// custom dimensions in GA4 (Admin > Custom definitions).

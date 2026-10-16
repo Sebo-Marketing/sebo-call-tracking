@@ -7,6 +7,8 @@
  *   hostnames     Extra domains this site answers to (multisite routing only),
  *                 e.g. its old domain before launch.
  *   event_name    GA4 event name, default phone_call.
+ *   call_value    Value sent with every call (blank: none), and currency, default USD.
+ *                 A GHL Custom Data item "value" (and "currency") overrides them.
  *
  * Network settings (Network Admin > Settings > Call Tracking), multisite only:
  *   destinations  Properties that receive every site's calls (a roll-up).
@@ -26,6 +28,8 @@ function sebo_ct_defaults(): array {
 		'destinations' => array(),
 		'hostnames'    => '',
 		'event_name'   => 'phone_call',
+		'call_value'   => '',
+		'currency'     => 'USD',
 		'secret'       => '',
 	);
 }
@@ -115,6 +119,18 @@ function sebo_ct_destinations( ?int $blog_id = null ): array {
 		}
 	}
 	return $out;
+}
+
+/** A money amount from text ("$1,250.00" -> 1250.0), or null if there is none. */
+function sebo_ct_parse_value( $raw ): ?float {
+	$clean = preg_replace( '/[^0-9.\-]/', '', (string) $raw );
+	return ( '' !== $clean && is_numeric( $clean ) ) ? round( (float) $clean, 2 ) : null;
+}
+
+/** A three-letter currency code, or '' if it is not one. */
+function sebo_ct_parse_currency( $raw ): string {
+	$code = strtoupper( trim( (string) $raw ) );
+	return preg_match( '/^[A-Z]{3}$/', $code ) ? $code : '';
 }
 
 /**

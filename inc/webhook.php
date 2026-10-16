@@ -108,6 +108,8 @@ function sebo_ct_normalize_call( array $payload ): array {
 		'gclid'           => $str( ( $last['gclid'] ?? '' ) ?: ( $first['gclid'] ?? '' ) ),
 		'tracking_number' => $str( ( $custom['tracking_number'] ?? '' ) ?: ( $payload['contact_source'] ?? '' ) ),
 		'site'            => $str( $custom['site'] ?? '' ),
+		'value'           => sebo_ct_parse_value( $custom['value'] ?? '' ),
+		'currency'        => sebo_ct_parse_currency( $custom['currency'] ?? '' ),
 		'time'            => microtime( true ),
 	);
 }
@@ -216,6 +218,15 @@ function sebo_ct_process_call( array $payload, bool $validate = false, ?int $blo
 	$event_name = $blog_id ? sebo_ct_site_settings( $blog_id )['event_name'] : 'phone_call';
 	$event_name = preg_match( '/^[A-Za-z][A-Za-z0-9_]{0,39}$/', (string) $event_name ) ? $event_name : 'phone_call';
 
+	// The call's value: the workflow's "value" item, else the site's setting.
+	$site = $blog_id ? sebo_ct_site_settings( $blog_id ) : sebo_ct_defaults();
+	if ( null === $call['value'] ) {
+		$call['value'] = sebo_ct_parse_value( $site['call_value'] );
+	}
+	if ( null !== $call['value'] && '' === $call['currency'] ) {
+		$call['currency'] = sebo_ct_parse_currency( $site['currency'] ) ?: 'USD';
+	}
+
 	$results = array();
 	$all_ok  = true;
 	foreach ( $destinations as $dest ) {
@@ -241,6 +252,7 @@ function sebo_ct_process_call( array $payload, bool $validate = false, ?int $blo
 		$all_ok ? 'sent' : 'error',
 		array(
 			'event'        => $event_name,
+			'value'        => null === $call['value'] ? null : $call['value'] . ' ' . $call['currency'],
 			'source'       => $call['source'],
 			'landing_page' => $call['landing_page'],
 			'results'      => $results,

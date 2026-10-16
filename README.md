@@ -31,6 +31,12 @@ This plugin fills the gap:
    `call_source`, `call_medium`, `call_campaign`, `call_landing_page`,
    `tracking_number` and `gclid`, all from the same visit.
 
+**Call value.** Settings > Call Tracking has a *Call value* and currency
+(blank: none). Every call then carries GA4's `value` and `currency`, which the
+key event and a Google Ads import ("use the value from Google Analytics")
+pick up. A GHL workflow can set it per call instead, with Custom Data items
+`value` (e.g. `250`) and `currency` (e.g. `USD`); those win over the setting.
+
 A caller with no recorded website visit (they found the number elsewhere) is
 logged but not sent: GA4 needs a client ID, and a made-up one would invent a
 visitor.

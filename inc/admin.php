@@ -71,6 +71,9 @@ function sebo_ct_save_site(): void {
 	$settings['hostnames']    = sanitize_textarea_field( wp_unslash( $_POST['sebo_ct_hostnames'] ?? '' ) );
 	$event                    = sanitize_key( wp_unslash( $_POST['sebo_ct_event'] ?? 'phone_call' ) );
 	$settings['event_name']   = $event ?: 'phone_call';
+	$value                    = sebo_ct_parse_value( wp_unslash( $_POST['sebo_ct_value'] ?? '' ) );
+	$settings['call_value']   = null === $value ? '' : (string) $value;
+	$settings['currency']     = sebo_ct_parse_currency( wp_unslash( $_POST['sebo_ct_currency'] ?? '' ) ) ?: 'USD';
 	if ( ! empty( $_POST['sebo_ct_new_key'] ) ) {
 		$settings['secret'] = '';
 	}
@@ -246,6 +249,12 @@ function sebo_ct_render_site_page(): void {
 				<tr>
 					<th scope="row"><label for="sebo_ct_event">Event name</label></th>
 					<td><input type="text" id="sebo_ct_event" name="sebo_ct_event" value="<?php echo esc_attr( $settings['event_name'] ); ?>" class="regular-text"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="sebo_ct_value">Call value</label></th>
+					<td><input type="text" id="sebo_ct_value" name="sebo_ct_value" value="<?php echo esc_attr( $settings['call_value'] ); ?>" class="small-text" placeholder="0">
+						<input type="text" id="sebo_ct_currency" name="sebo_ct_currency" value="<?php echo esc_attr( $settings['currency'] ); ?>" class="small-text" maxlength="3" aria-label="Currency">
+						<p class="description">Sent with every call as GA4's <code>value</code> and <code>currency</code>, so the key event (and a Google Ads import set to use the value from Google Analytics) carries it. Leave blank for no value. A GHL workflow can override it per call with Custom Data items <code>value</code> and <code>currency</code>.</p></td>
 				</tr>
 				<?php if ( is_multisite() ) : ?>
 				<tr>
