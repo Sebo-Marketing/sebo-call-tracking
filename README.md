@@ -48,9 +48,18 @@ visitor.
    several). Action **Webhook**, POST, to the URL shown on the settings page.
    Optional Custom Data item `tracking_number` (the pool's name) is passed to
    GA4.
-4. **GA4**: once the first call has arrived, Admin > Events > mark
-   `phone_call` as a key event. Optionally register `call_source`,
-   `tracking_number` and `call_landing_page` as event-scoped custom dimensions.
+4. **GA4** (about 5 minutes, in each property that receives calls):
+   - Admin > Key events > New key event: `phone_call` (it can be created
+     before the first call arrives).
+   - Admin > Custom definitions > Create custom dimension, scope **Event**:
+
+     | Dimension name | Event parameter |
+     |---|---|
+     | Call source | `call_source` |
+     | Call medium | `call_medium` |
+     | Call campaign | `call_campaign` |
+     | Call landing page | `call_landing_page` |
+     | Tracking number | `tracking_number` |
 5. **Google Ads**: Goals > Conversions > New conversion action > Import >
    Google Analytics 4 properties > Web > `phone_call`. The GA4 property must be
    linked to the Ads account.
