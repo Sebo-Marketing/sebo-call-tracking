@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Sebo Call Tracking
  * Description:       Sends GoHighLevel number-pool calls to GA4 as a phone_call event, tied to the caller's website session, so GA4 and Google Ads credit the right source.
- * Version:           1.0.1
+ * Version:           1.1.0
  * Plugin URI:        https://github.com/Sebo-Marketing/sebo-call-tracking
  * Requires at least: 6.4
  * Requires PHP:      8.1
@@ -48,7 +48,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SEBO_CT_VERSION = '1.0.1';
+const SEBO_CT_VERSION = '1.1.0';
 const SEBO_CT_FILE    = __FILE__;
 const SEBO_CT_DIR     = __DIR__;
 

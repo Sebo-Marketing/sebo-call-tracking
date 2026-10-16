@@ -10,7 +10,7 @@
  *
  * Network settings (Network Admin > Settings > Call Tracking), multisite only:
  *   destinations  Properties that receive every site's calls (a roll-up).
- *   secret        The webhook key. On a single site it lives in the site settings.
+ *   secret        The network webhook key. Each site also has its own key.
  *
  * @package SeboCallTracking
  */
@@ -44,11 +44,15 @@ function sebo_ct_network_settings(): array {
 }
 
 /**
- * The webhook key, generated the first time it is needed. One per network on
- * multisite (one GHL workflow for every site), one per site otherwise.
+ * Webhook keys, generated the first time they are needed.
+ *
+ * Every site has its own key and URL, so a client's GHL workflow can only post
+ * calls to that client's site. A multisite also has a network key, for one
+ * workflow that covers several sites of the same business (calls are then
+ * routed by domain).
  */
-function sebo_ct_webhook_secret(): string {
-	if ( is_multisite() ) {
+function sebo_ct_webhook_secret( string $scope = 'site' ): string {
+	if ( 'network' === $scope && is_multisite() ) {
 		$settings = sebo_ct_network_settings();
 		if ( '' === $settings['secret'] ) {
 			$settings['secret'] = wp_generate_password( 32, false );
@@ -66,12 +70,14 @@ function sebo_ct_webhook_secret(): string {
 }
 
 /**
- * The URL to paste into the GHL workflow's Webhook action. On multisite it is
- * the network's main site; calls are routed from there.
+ * The URL to paste into a GHL workflow's Webhook action: this site's own, or
+ * on a multisite the network's (on the main site, routed from there).
  */
-function sebo_ct_webhook_url(): string {
-	$base = is_multisite() ? get_rest_url( get_main_site_id(), SEBO_CT_NS . '/call' ) : rest_url( SEBO_CT_NS . '/call' );
-	return add_query_arg( 'key', sebo_ct_webhook_secret(), $base );
+function sebo_ct_webhook_url( string $scope = 'site' ): string {
+	$base = ( 'network' === $scope && is_multisite() )
+		? get_rest_url( get_main_site_id(), SEBO_CT_NS . '/call' )
+		: rest_url( SEBO_CT_NS . '/call' );
+	return add_query_arg( 'key', sebo_ct_webhook_secret( $scope ), $base );
 }
 
 /** A measurement ID in canonical form, or '' if it is not one. */

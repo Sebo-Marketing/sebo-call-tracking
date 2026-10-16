@@ -71,7 +71,7 @@ function sebo_ct_save_site(): void {
 	$settings['hostnames']    = sanitize_textarea_field( wp_unslash( $_POST['sebo_ct_hostnames'] ?? '' ) );
 	$event                    = sanitize_key( wp_unslash( $_POST['sebo_ct_event'] ?? 'phone_call' ) );
 	$settings['event_name']   = $event ?: 'phone_call';
-	if ( ! is_multisite() && ! empty( $_POST['sebo_ct_new_key'] ) ) {
+	if ( ! empty( $_POST['sebo_ct_new_key'] ) ) {
 		$settings['secret'] = '';
 	}
 	update_option( SEBO_CT_OPTION, $settings );
@@ -186,14 +186,19 @@ function sebo_ct_render_log( ?int $blog_id ): void {
 }
 
 /** Setup steps, shown on whichever page holds the webhook URL. */
-function sebo_ct_render_setup( bool $with_url ): void {
+function sebo_ct_render_setup( string $scope ): void {
 	?>
 	<h2>Setup</h2>
 	<ol>
-		<?php if ( $with_url ) : ?>
+		<?php if ( '' !== $scope ) : ?>
 		<li><strong>GoHighLevel:</strong> Automation &gt; Workflows &gt; new workflow. Trigger <em>Call Details</em>, Call Direction is Incoming (add a filter for the number pool if this location has others). Action <em>Webhook</em>, method POST, URL:
-			<p><input type="text" readonly value="<?php echo esc_attr( sebo_ct_webhook_url() ); ?>" class="large-text code" onclick="this.select()"></p>
-			The URL contains this site's key; keep it out of screenshots.</li>
+			<p><input type="text" readonly value="<?php echo esc_attr( sebo_ct_webhook_url( $scope ) ); ?>" class="large-text code" onclick="this.select()"></p>
+			<?php if ( 'network' === $scope ) : ?>
+			One workflow for several sites of the same business: each call goes to the site whose domain the caller last visited. If the workflow is for one site's number pool, add a Custom Data item <code>site</code> with that site's path (for example <code>six-lakes</code>), or use the site's own URL from its Settings &gt; Call Tracking instead.
+			<?php else : ?>
+			Calls posted to this URL always belong to this site.
+			<?php endif; ?>
+			Optional Custom Data item <code>tracking_number</code> (for example the pool's name) is passed to GA4. The URL contains a key; keep it out of screenshots.</li>
 		<?php endif; ?>
 		<li><strong>GA4:</strong> after the first call arrives, Admin &gt; Events &gt; mark <code>phone_call</code> as a key event. Optional: register <code>call_source</code>, <code>tracking_number</code> and <code>call_landing_page</code> as event-scoped custom dimensions to report on them.</li>
 		<li><strong>Google Ads:</strong> Goals &gt; Conversions &gt; New conversion action &gt; Import &gt; Google Analytics 4 properties &gt; Web &gt; <code>phone_call</code>. The GA4 property must be linked to the Ads account.</li>
@@ -233,22 +238,19 @@ function sebo_ct_render_site_page(): void {
 					<td><textarea id="sebo_ct_hostnames" name="sebo_ct_hostnames" rows="3" class="large-text code"><?php echo esc_textarea( $settings['hostnames'] ); ?></textarea>
 						<p class="description">Calls are matched to this site by the domain of the page the caller last visited. List any other domains that belong to it, one per line (for example its old site before launch). This site's own address is included automatically.</p></td>
 				</tr>
-				<?php else : ?>
+				<?php endif; ?>
 				<tr>
 					<th scope="row">Webhook key</th>
-					<td><label><input type="checkbox" name="sebo_ct_new_key" value="1"> Generate a new key (the GHL workflow's URL must then be updated)</label></td>
+					<td><label><input type="checkbox" name="sebo_ct_new_key" value="1"> Generate a new key for this site (its GHL workflow's URL must then be updated)</label></td>
 				</tr>
-				<?php endif; ?>
 			</table>
 			<?php submit_button(); ?>
 		</form>
 
 		<?php
-		if ( is_multisite() ) {
-			echo '<p>The GoHighLevel webhook is set up once for the whole network: ' . ( current_user_can( 'manage_network_options' ) ? '<a href="' . esc_url( network_admin_url( 'settings.php?page=' . SEBO_CT_PAGE ) ) . '">Network Admin &gt; Settings &gt; Call Tracking</a>' : 'ask a network administrator' ) . '.</p>';
-			sebo_ct_render_setup( false );
-		} else {
-			sebo_ct_render_setup( true );
+		sebo_ct_render_setup( 'site' );
+		if ( is_multisite() && current_user_can( 'manage_network_options' ) ) {
+			echo '<p>Several sites of one business can share one workflow instead: <a href="' . esc_url( network_admin_url( 'settings.php?page=' . SEBO_CT_PAGE ) ) . '">Network Admin &gt; Settings &gt; Call Tracking</a>.</p>';
 		}
 		sebo_ct_render_log( get_current_blog_id() );
 		?>
@@ -264,7 +266,8 @@ function sebo_ct_render_network_page(): void {
 		<?php if ( isset( $_GET['updated'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
 			<div class="notice notice-success is-dismissible"><p>Network settings saved.</p></div>
 		<?php endif; ?>
-		<p>One GoHighLevel workflow serves every site. Each call goes to the site whose domain the caller last visited (set each site's GA4 property and any other domains under its <em>Settings &gt; Call Tracking</em>), and to the network properties below.</p>
+		<p>Every site has its own webhook URL (on its <em>Settings &gt; Call Tracking</em>), which is the right choice when sites belong to different clients. The network URL below is for one GoHighLevel workflow covering several sites of the same business: each call goes to the site whose domain the caller last visited.</p>
+		<p><strong>The properties below receive every site's calls</strong>, whichever URL they arrive at. Leave them empty on a network of unrelated clients.</p>
 
 		<form method="post" action="<?php echo esc_url( network_admin_url( 'edit.php?action=sebo_ct_save' ) ); ?>">
 			<?php wp_nonce_field( 'sebo_ct_save' ); ?>
@@ -273,14 +276,14 @@ function sebo_ct_render_network_page(): void {
 			<table class="form-table" role="presentation">
 				<tr>
 					<th scope="row">Webhook key</th>
-					<td><label><input type="checkbox" name="sebo_ct_new_key" value="1"> Generate a new key (the GHL workflow's URL must then be updated)</label></td>
+					<td><label><input type="checkbox" name="sebo_ct_new_key" value="1"> Generate a new network key (workflows using the network URL must then be updated)</label></td>
 				</tr>
 			</table>
 			<?php submit_button( 'Save network settings' ); ?>
 		</form>
 
 		<?php
-		sebo_ct_render_setup( true );
+		sebo_ct_render_setup( 'network' );
 		sebo_ct_render_log( null );
 		?>
 	</div>

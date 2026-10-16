@@ -46,6 +46,8 @@ visitor.
 3. **GHL**: Automation > Workflows > new workflow. Trigger **Call Details**,
    Call Direction is Incoming (filter by number pool if the location has
    several). Action **Webhook**, POST, to the URL shown on the settings page.
+   Optional Custom Data item `tracking_number` (the pool's name) is passed to
+   GA4.
 4. **GA4**: once the first call has arrived, Admin > Events > mark
    `phone_call` as a key event. Optionally register `call_source`,
    `tracking_number` and `call_landing_page` as event-scoped custom dimensions.
@@ -53,17 +55,23 @@ visitor.
    Google Analytics 4 properties > Web > `phone_call`. The GA4 property must be
    linked to the Ads account.
 
-### Multisite (one site per brand, like Utah Family Lodges)
+### Multisite
 
-- **Network Admin > Settings > Call Tracking** holds the one webhook URL for a
-  single GHL workflow covering every site, plus GA4 properties that receive
-  **every** site's calls (a roll-up).
-- Each site's **Settings > Call Tracking** holds its own GA4 property and any
-  other domains that belong to it (for example its old site before launch).
-- Calls are routed to the site whose address matches the page the caller last
-  visited (`domain/path` for subdirectory sites). A `site` custom data item in
-  the GHL webhook (site ID, path or domain) overrides that. A call that matches
-  no site goes to the network properties only.
+**Every site has its own webhook URL and key** (on its Settings > Call
+Tracking). Calls posted there always belong to that site. Use this when the
+sites are different clients: each client's GHL workflow can only post to its
+own site.
+
+**One business with several sites** (like Utah Family Lodges) can also use the
+**network URL** (Network Admin > Settings > Call Tracking) for a single GHL
+workflow covering every site. Calls are routed to the site whose address
+matches the page the caller last visited (`domain/path` for subdirectory
+sites, plus each site's "Other domains"). A `site` Custom Data item (site ID,
+path or domain) overrides that. A call that matches no site goes to the network
+properties only.
+
+**Network properties** (same page) receive every site's calls, whichever URL
+they arrive at: a roll-up. Leave them empty on a network of unrelated clients.
 
 ## Settings page
 

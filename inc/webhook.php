@@ -34,6 +34,15 @@ add_action( 'rest_api_init', 'sebo_ct_register_call_route' );
  * item in the GHL webhook, whichever is easiest to set up.
  */
 function sebo_ct_check_key( WP_REST_Request $request ): bool {
+	return null !== sebo_ct_key_scope( $request );
+}
+
+/**
+ * Which key the request carries: 'site' (this site's own key: the call is for
+ * this site) or 'network' (the network key, accepted on the main site only:
+ * the call is routed by domain). Null when neither matches.
+ */
+function sebo_ct_key_scope( WP_REST_Request $request ): ?string {
 	$given = (string) ( $request->get_param( 'key' ) ?? '' );
 	if ( '' === $given ) {
 		$given = (string) $request->get_header( 'x-sebo-key' );
@@ -42,7 +51,16 @@ function sebo_ct_check_key( WP_REST_Request $request ): bool {
 		$custom = $request->get_param( 'customData' );
 		$given  = is_array( $custom ) ? (string) ( $custom['key'] ?? '' ) : '';
 	}
-	return '' !== $given && hash_equals( sebo_ct_webhook_secret(), $given );
+	if ( '' === $given ) {
+		return null;
+	}
+	if ( hash_equals( sebo_ct_webhook_secret( 'site' ), $given ) ) {
+		return 'site';
+	}
+	if ( is_multisite() && is_main_site() && hash_equals( sebo_ct_webhook_secret( 'network' ), $given ) ) {
+		return 'network';
+	}
+	return null;
 }
 
 /** "GA1.1.123.456" (or already "123.456") -> "123.456"; '' if not a client ID. */
@@ -155,9 +173,10 @@ function sebo_ct_destinations_for( int $blog_id ): array {
  *
  * @param bool $validate Check against GA4's debug endpoint instead of recording.
  */
-function sebo_ct_process_call( array $payload, bool $validate = false ): array {
-	$call    = sebo_ct_normalize_call( $payload );
-	$blog_id = sebo_ct_route( $call );
+function sebo_ct_process_call( array $payload, bool $validate = false, ?int $blog_id = null ): array {
+	$call = sebo_ct_normalize_call( $payload );
+	// A site's own key pins the call to that site; the network key routes it.
+	$blog_id = $blog_id ?? sebo_ct_route( $call );
 
 	$log = static function ( string $status, array $detail ) use ( $call, $blog_id, $validate ): array {
 		global $wpdb;
@@ -239,5 +258,6 @@ function sebo_ct_rest_call( WP_REST_Request $request ): WP_REST_Response {
 	}
 
 	$validate = (bool) $request->get_param( 'validate' );
-	return new WP_REST_Response( sebo_ct_process_call( $payload, $validate ), 200 );
+	$blog_id  = 'site' === sebo_ct_key_scope( $request ) ? get_current_blog_id() : null;
+	return new WP_REST_Response( sebo_ct_process_call( $payload, $validate, $blog_id ), 200 );
 }
