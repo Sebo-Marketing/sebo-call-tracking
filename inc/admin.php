@@ -97,11 +97,13 @@ function sebo_ct_save_network(): void {
 	exit;
 }
 
-/** The GA4 property rows, plus two empty ones for adding more. */
-function sebo_ct_render_destinations( array $rows ): void {
+/**
+ * The GA4 property rows: each saved one, then one empty row (or just the empty
+ * row when nothing is saved). "Add another property" adds rows as needed.
+ */
+function sebo_ct_render_destinations( array $rows, string $empty_hint ): void {
 	$rows[] = array();
-	$rows[] = array();
-	echo '<table class="widefat striped" style="max-width:760px"><thead><tr><th>Measurement ID</th><th>Measurement Protocol API secret</th></tr></thead><tbody>';
+	echo '<table class="widefat striped sebo-ct-dests" style="max-width:760px"><thead><tr><th>Measurement ID</th><th>Measurement Protocol API secret</th></tr></thead><tbody>';
 	foreach ( $rows as $row ) {
 		$mid   = (string) ( $row['measurement_id'] ?? '' );
 		$saved = '' !== (string) ( $row['api_secret'] ?? '' );
@@ -113,7 +115,20 @@ function sebo_ct_render_destinations( array $rows ): void {
 		);
 	}
 	echo '</tbody></table>';
-	echo '<p class="description">API secret: GA4 Admin &gt; Data streams &gt; your web stream &gt; Measurement Protocol API secrets &gt; Create. A saved secret shows as dots; leave it to keep it. Clear the Measurement ID to remove a row.</p>';
+	echo '<p><button type="button" class="button sebo-ct-add">Add another property</button></p>';
+	echo '<p class="description">' . esc_html( $empty_hint ) . ' API secret: GA4 Admin &gt; Data streams &gt; your web stream &gt; Measurement Protocol API secrets &gt; Create. A saved secret shows as dots; leave it to keep it. Clear the Measurement ID to remove a row.</p>';
+	?>
+	<script>
+	document.addEventListener( 'click', function ( e ) {
+		if ( ! e.target.classList.contains( 'sebo-ct-add' ) ) { return; }
+		var body = e.target.closest( 'form' ).querySelector( '.sebo-ct-dests tbody' );
+		var row = body.lastElementChild.cloneNode( true );
+		row.querySelectorAll( 'input' ).forEach( function ( input ) { input.value = ''; } );
+		body.appendChild( row );
+		row.querySelector( 'input' ).focus();
+	} );
+	</script>
+	<?php
 }
 
 function sebo_ct_site_label( int $blog_id ): string {
@@ -202,7 +217,7 @@ function sebo_ct_render_site_page(): void {
 			<?php wp_nonce_field( 'sebo_ct_save' ); ?>
 
 			<h2>GA4 properties for this site</h2>
-			<?php sebo_ct_render_destinations( $settings['destinations'] ); ?>
+			<?php sebo_ct_render_destinations( $settings['destinations'], 'Usually one: this site\'s own GA4 property.' ); ?>
 			<?php if ( $network ) : ?>
 				<p>Every call is also sent to the network's properties: <strong><?php echo esc_html( implode( ', ', wp_list_pluck( $network, 'measurement_id' ) ) ); ?></strong>.</p>
 			<?php endif; ?>
@@ -254,7 +269,7 @@ function sebo_ct_render_network_page(): void {
 		<form method="post" action="<?php echo esc_url( network_admin_url( 'edit.php?action=sebo_ct_save' ) ); ?>">
 			<?php wp_nonce_field( 'sebo_ct_save' ); ?>
 			<h2>GA4 properties that receive every site's calls</h2>
-			<?php sebo_ct_render_destinations( $settings['destinations'] ); ?>
+			<?php sebo_ct_render_destinations( $settings['destinations'], 'For example a roll-up property. Each site\'s own property is set on that site.' ); ?>
 			<table class="form-table" role="presentation">
 				<tr>
 					<th scope="row">Webhook key</th>
