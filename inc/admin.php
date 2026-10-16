@@ -200,7 +200,22 @@ function sebo_ct_render_setup( string $scope ): void {
 			<?php endif; ?>
 			Optional Custom Data item <code>tracking_number</code> (for example the pool's name) is passed to GA4. The URL contains a key; keep it out of screenshots.</li>
 		<?php endif; ?>
-		<li><strong>GA4:</strong> after the first call arrives, Admin &gt; Events &gt; mark <code>phone_call</code> as a key event. Optional: register <code>call_source</code>, <code>tracking_number</code> and <code>call_landing_page</code> as event-scoped custom dimensions to report on them.</li>
+		<li><strong>GA4</strong>, in each property that receives calls (about 5 minutes):
+			<ul style="list-style:disc;margin:8px 0 0 20px">
+				<li>Admin &gt; Key events &gt; New key event: <code>phone_call</code>. It can be created before the first call arrives.</li>
+				<li>Admin &gt; Custom definitions &gt; Create custom dimension, scope <strong>Event</strong>, one for each row:</li>
+			</ul>
+			<table class="widefat striped" style="max-width:480px;margin:8px 0 0 20px">
+				<thead><tr><th>Dimension name</th><th>Event parameter</th></tr></thead>
+				<tbody>
+					<tr><td>Call source</td><td><code>call_source</code></td></tr>
+					<tr><td>Call medium</td><td><code>call_medium</code></td></tr>
+					<tr><td>Call campaign</td><td><code>call_campaign</code></td></tr>
+					<tr><td>Call landing page</td><td><code>call_landing_page</code></td></tr>
+					<tr><td>Tracking number</td><td><code>tracking_number</code></td></tr>
+				</tbody>
+			</table>
+		</li>
 		<li><strong>Google Ads:</strong> Goals &gt; Conversions &gt; New conversion action &gt; Import &gt; Google Analytics 4 properties &gt; Web &gt; <code>phone_call</code>. The GA4 property must be linked to the Ads account.</li>
 	</ol>
 	<?php
