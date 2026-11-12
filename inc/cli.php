@@ -23,6 +23,8 @@ class Sebo_CT_CLI {
 		global $wpdb;
 		$dests = sebo_ct_destinations();
 		WP_CLI::log( 'Destinations: ' . ( $dests ? implode( ', ', array_map( static fn( $d ) => $d['measurement_id'] . ' (' . $d['scope'] . ')', $dests ) ) : 'none' ) );
+		$own = '1' === (string) sebo_ct_site_settings()['own_only'];
+		WP_CLI::log( 'Only this site\'s visitors: ' . ( $own ? 'on (' . implode( ', ', sebo_ct_site_domains() ) . ')' : 'off' ) );
 		WP_CLI::log( 'Sessions on record: ' . (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . sebo_ct_sessions_table() ) ); // phpcs:ignore WordPress.DB
 		WP_CLI::log( 'Calls logged: ' . (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . sebo_ct_log_table() ) ); // phpcs:ignore WordPress.DB
 	}
@@ -64,7 +66,10 @@ class Sebo_CT_CLI {
 			'customData' => array( 'tracking_number' => 'Test Number Pool' ),
 		);
 
-		$result = sebo_ct_process_call( $payload, empty( $assoc['send'] ) );
+		// With "Only count calls from visitors to this site's domains" on, test
+		// it the way the site's own webhook URL handles calls.
+		$own_only = '1' === (string) sebo_ct_site_settings()['own_only'];
+		$result   = sebo_ct_process_call( $payload, empty( $assoc['send'] ), $own_only ? get_current_blog_id() : null );
 		WP_CLI::log( (string) wp_json_encode( $result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
 		if ( in_array( $result['status'], array( 'sent' ), true ) ) {
 			WP_CLI::success( empty( $assoc['send'] ) ? 'Valid: GA4 accepted the event (nothing recorded).' : 'Sent.' );

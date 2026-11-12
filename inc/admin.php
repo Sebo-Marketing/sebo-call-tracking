@@ -69,6 +69,7 @@ function sebo_ct_save_site(): void {
 	$settings                 = sebo_ct_site_settings();
 	$settings['destinations'] = sebo_ct_posted_destinations( $settings['destinations'] );
 	$settings['hostnames']    = sanitize_textarea_field( wp_unslash( $_POST['sebo_ct_hostnames'] ?? '' ) );
+	$settings['own_only']     = empty( $_POST['sebo_ct_own_only'] ) ? '' : '1';
 	$event                    = sanitize_key( wp_unslash( $_POST['sebo_ct_event'] ?? 'phone_call' ) );
 	$settings['event_name']   = $event ?: 'phone_call';
 	$value                    = sebo_ct_parse_value( wp_unslash( $_POST['sebo_ct_value'] ?? '' ) );
@@ -162,6 +163,7 @@ function sebo_ct_render_log( ?int $blog_id ): void {
 		'no-visit'       => 'No website visit on record (not sent)',
 		'no-destination' => 'No GA4 property set up for this site',
 		'duplicate'      => 'Duplicate delivery (ignored)',
+		'other-site'     => 'Visitor of another site (not sent)',
 	);
 
 	echo '<table class="widefat striped"><thead><tr><th>When</th>' . ( null === $blog_id ? '<th>Site</th>' : '' ) . '<th>Result</th><th>Source</th><th>Session matched</th><th>GHL contact</th></tr></thead><tbody>';
@@ -256,13 +258,16 @@ function sebo_ct_render_site_page(): void {
 						<input type="text" id="sebo_ct_currency" name="sebo_ct_currency" value="<?php echo esc_attr( $settings['currency'] ); ?>" class="small-text" maxlength="3" aria-label="Currency">
 						<p class="description">Sent with every call as GA4's <code>value</code> and <code>currency</code>, so the key event (and a Google Ads import set to use the value from Google Analytics) carries it. Leave blank for no value. A GHL workflow can override it per call with Custom Data items <code>value</code> and <code>currency</code>.</p></td>
 				</tr>
-				<?php if ( is_multisite() ) : ?>
+				<tr>
+					<th scope="row">Shared number pool</th>
+					<td><label><input type="checkbox" id="sebo_ct_own_only" name="sebo_ct_own_only" value="1" <?php checked( '1', (string) $settings['own_only'] ); ?>> Only count calls from visitors to this site's domains</label>
+						<p class="description">Turn on when this site's number pool is shared with another website and the GoHighLevel workflow posts every call to both sites. Each site then keeps only callers whose last visited page was on one of its domains (below), so every call is counted once, by the right site. Others are logged as "Visitor of another site" and not sent. Leave off when the pool belongs to this site alone.</p></td>
+				</tr>
 				<tr>
 					<th scope="row"><label for="sebo_ct_hostnames">Other domains</label></th>
-					<td><textarea id="sebo_ct_hostnames" name="sebo_ct_hostnames" rows="3" class="large-text code"><?php echo esc_textarea( $settings['hostnames'] ); ?></textarea>
-						<p class="description">Calls are matched to this site by the domain of the page the caller last visited. List any other domains that belong to it, one per line (for example its old site before launch). This site's own address is included automatically.</p></td>
+					<td><textarea id="sebo_ct_hostnames" name="sebo_ct_hostnames" rows="3" class="large-text code" placeholder="landing.example.com"><?php echo esc_textarea( $settings['hostnames'] ); ?></textarea>
+						<p class="description">This site's own address (<code><?php echo esc_html( implode( ', ', sebo_ct_site_domains() ) ); ?></code>) is always included; <code>www.</code> is ignored. List any other domains whose visitors belong to this site, one per line: landing pages or funnels hosted elsewhere, or an old domain. Subdomains count only when listed.<?php echo is_multisite() ? ' On this network, calls sent to the network webhook are also routed by these domains.' : ''; ?></p></td>
 				</tr>
-				<?php endif; ?>
 				<tr>
 					<th scope="row">Webhook key</th>
 					<td><label><input type="checkbox" name="sebo_ct_new_key" value="1"> Generate a new key for this site (its GHL workflow's URL must then be updated)</label></td>

@@ -4,8 +4,13 @@
  *
  * Site settings (Settings > Call Tracking):
  *   destinations  GA4 properties this site's calls go to: measurement ID + API secret.
- *   hostnames     Extra domains this site answers to (multisite routing only),
- *                 e.g. its old domain before launch.
+ *   hostnames     Extra domains this site answers to, one per line (e.g. its
+ *                 old domain, or landing pages hosted elsewhere). Used to route
+ *                 network calls on a multisite, and by own_only.
+ *   own_only      '1': calls posted to this site's own webhook URL count only
+ *                 when the caller last visited one of this site's domains.
+ *                 For a number pool shared by several websites: each site's
+ *                 webhook gets every call, and each keeps only its own.
  *   event_name    GA4 event name, default phone_call.
  *   call_value    Value sent with every call (blank: none), and currency, default USD.
  *                 A GHL Custom Data item "value" (and "currency") overrides them.
@@ -27,6 +32,7 @@ function sebo_ct_defaults(): array {
 	return array(
 		'destinations' => array(),
 		'hostnames'    => '',
+		'own_only'     => '',
 		'event_name'   => 'phone_call',
 		'call_value'   => '',
 		'currency'     => 'USD',
@@ -131,6 +137,39 @@ function sebo_ct_parse_value( $raw ): ?float {
 function sebo_ct_parse_currency( $raw ): string {
 	$code = strtoupper( trim( (string) $raw ) );
 	return preg_match( '/^[A-Z]{3}$/', $code ) ? $code : '';
+}
+
+/** A domain in comparable form: lowercase, no scheme, path, port or "www.". */
+function sebo_ct_clean_domain( string $value ): string {
+	$value = strtolower( trim( $value ) );
+	$value = (string) preg_replace( '#^[a-z][a-z0-9+.\-]*://#', '', $value );
+	$value = (string) preg_replace( '#[/?\#:].*$#', '', $value );
+	return (string) preg_replace( '/^www\./', '', trim( $value, '.' ) );
+}
+
+/**
+ * Every domain a site counts as its own: its home address, then its
+ * "Other domains" setting.
+ *
+ * @return string[]
+ */
+function sebo_ct_site_domains( ?int $blog_id = null ): array {
+	$home    = ( is_multisite() && $blog_id ) ? get_home_url( $blog_id ) : home_url();
+	$domains = array( sebo_ct_clean_domain( (string) wp_parse_url( $home, PHP_URL_HOST ) ) );
+	foreach ( preg_split( '/[\s,]+/', (string) sebo_ct_site_settings( $blog_id )['hostnames'], -1, PREG_SPLIT_NO_EMPTY ) as $extra ) {
+		$domains[] = sebo_ct_clean_domain( $extra );
+	}
+	return array_values( array_unique( array_filter( $domains ) ) );
+}
+
+/**
+ * Whether a host is one of the given domains. Exact match after cleaning
+ * ("www." ignored): a subdomain counts only when it is listed itself, since
+ * unrelated sites can live under one parent domain.
+ */
+function sebo_ct_host_is_own( string $host, array $domains ): bool {
+	$host = sebo_ct_clean_domain( $host );
+	return '' !== $host && in_array( $host, array_map( 'sebo_ct_clean_domain', $domains ), true );
 }
 
 /**

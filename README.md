@@ -88,6 +88,18 @@ properties only.
 **Network properties** (same page) receive every site's calls, whichever URL
 they arrive at: a roll-up. Leave them empty on a network of unrelated clients.
 
+### One number pool shared by several websites
+
+When two sites (separate installs, or different clients' sites) draw numbers
+from the same GHL pool, the workflow posts every call to **both** sites'
+webhook URLs. On each site, tick **Settings > Call Tracking > Shared number
+pool: Only count calls from visitors to this site's domains**. Each site then
+keeps only callers whose last visited page (`contact.lastAttributionSource.url`)
+was on its own address or one of its **Other domains**; the rest are logged as
+"Visitor of another site" and not sent. Every call is counted once, in the
+right property. Matching is exact (`www.` ignored), so list subdomains and
+landing-page domains that belong to the site. Off by default.
+
 ## Settings page
 
 Shows the webhook URL (it contains the key, so keep it out of screenshots),
@@ -125,6 +137,7 @@ push to `main`, then publish a GitHub release tagged `vX.Y.Z` with
 
 ```bash
 node tests/sessions.test.js
+php tests/domains.test.php
 ```
 
 Cookie parsing (`GA1.1`/`GA1.2` client IDs, `GS1`/`GS2` session cookies) and

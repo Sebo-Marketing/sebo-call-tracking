@@ -178,7 +178,8 @@ function sebo_ct_destinations_for( int $blog_id ): array {
 function sebo_ct_process_call( array $payload, bool $validate = false, ?int $blog_id = null ): array {
 	$call = sebo_ct_normalize_call( $payload );
 	// A site's own key pins the call to that site; the network key routes it.
-	$blog_id = $blog_id ?? sebo_ct_route( $call );
+	$site_key_blog = $blog_id;
+	$blog_id       = $blog_id ?? sebo_ct_route( $call );
 
 	$log = static function ( string $status, array $detail ) use ( $call, $blog_id, $validate ): array {
 		global $wpdb;
@@ -202,6 +203,15 @@ function sebo_ct_process_call( array $payload, bool $validate = false, ?int $blo
 		// somewhere else, or blocked analytics). GA4 needs a client ID, and a
 		// made-up one would invent a visitor, so the call is only logged.
 		return $log( 'no-visit', array( 'host' => $call['host'] ) );
+	}
+
+	// A number pool shared by several websites: every site's webhook gets
+	// every call, and each keeps only callers who last visited one of its own
+	// domains, so a call is counted once, by the right site. Applies to calls
+	// posted to a site's own URL (network calls are already routed by domain).
+	if ( null !== $site_key_blog && '1' === (string) sebo_ct_site_settings( $site_key_blog )['own_only']
+		&& ! sebo_ct_host_is_own( $call['host'], sebo_ct_site_domains( $site_key_blog ) ) ) {
+		return $log( 'other-site', array( 'host' => '' !== $call['host'] ? $call['host'] : '(unknown)' ) );
 	}
 
 	// GHL can deliver the same webhook twice; ignore a repeat within 2 minutes.
